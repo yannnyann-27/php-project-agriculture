@@ -1,0 +1,79 @@
+<?php
+require_once __DIR__ . '/../includes/auth_check.php';
+require_once __DIR__ . '/../includes/sample_data.php';
+$root = '../'; $page_title = 'Edit Harvest'; $active = 'harvests';
+
+$id  = (int) ($_GET['id'] ?? 0);
+$row = find_row($harvests, 'harvest_id', $id);
+if (!$row) {
+    $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Record not found.'];
+    header("Location: index.php");
+    exit;
+}
+
+$fields = [
+    ['planting_id', 'Planting Record', 'select'],
+    ['harvest_date', 'Harvest Date', 'date'],
+    ['quantity_kg', 'Quantity (kg)', 'number'],
+    ['selling_price_per_kg', 'Selling Price per kg', 'number'],
+    ['quality_grade', 'Quality Grade', 'select'],
+    ['remark_id', 'Remarks', 'select'],
+];
+$errors = [];
+$data   = $row ?? [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    foreach ($fields as [$name, $label, $type]) {
+        $value = (string) trim($_POST[$name] ?? '');
+        $data[$name] = $value;
+
+        if ($value === '') {
+            $errors[$name] = "$label is required.";
+        } elseif ($type === 'number' && (!is_numeric($value) || (float) $value <= 0)) {
+            $errors[$name] = "$label must be a number greater than 0.";
+        } elseif ($type === 'date' && !strtotime($value)) {
+            $errors[$name] = "$label must be a valid date.";
+        }
+    }
+    
+    if (!$errors) {
+        // PROTOTYPE: the Model's update() will be called here
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Harvest updated successfully.'];
+        header("Location: index.php");
+        exit;
+    }
+}
+
+include '../includes/header.php';
+?>
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4">Edit Harvest</h1>
+    <?php if ($errors): ?>
+        <div class="mb-4 p-3 rounded bg-red-100 border border-red-400 text-red-800 text-sm">Please fix the errors below.</div>
+    <?php endif; ?>
+
+    <form method="POST" class="bg-white p-6 rounded-lg shadow grid sm:grid-cols-2 gap-4">
+        <?php foreach ($fields as [$name, $label, $type]): ?>
+            <div>
+                <label class="block text-sm font-medium mb-1"><?= $label ?></label>
+                <?php if ($type === 'select'): ?>
+                    <select name="<?= $name ?>" class="w-full p-2 border rounded <?= isset($errors[$name]) ? 'border-red-500' : '' ?>">
+                        <option value="">-- Select <?= $label ?> --</option>
+                        <?php foreach ($options[$name] as [$val, $text]): ?>
+                            <option value="<?= htmlspecialchars($val) ?>" <?= (string) ($data[$name] ?? '') === (string) $val ? 'selected' : '' ?>><?= htmlspecialchars($text) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php else: ?>
+                    <input type="<?= $type === 'number' ? 'number' : $type ?>" <?= $type === 'number' ? 'step="0.01" min="0"' : '' ?> name="<?= $name ?>" value="<?= htmlspecialchars($data[$name] ?? '') ?>" class="w-full p-2 border rounded <?= isset($errors[$name]) ? 'border-red-500' : '' ?>">
+                <?php endif; ?>
+                <?php if (isset($errors[$name])): ?><p class="text-xs text-red-600 mt-1"><?= htmlspecialchars($errors[$name]) ?></p><?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+
+        <div class="sm:col-span-2 flex gap-2 justify-end">
+            <a href="index.php" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded">Cancel</a>
+            <button type="submit" class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded">Update Harvest</button>
+        </div>
+    </form>
+</div>
+<?php include '../includes/footer.php'; ?>
